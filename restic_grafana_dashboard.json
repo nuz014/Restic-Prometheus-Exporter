@@ -1,0 +1,135 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Snapshots",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "restic_snapshot_count",
+          "legendFormat": "Total Snapshots",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["last"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "table",
+      "title": "Snapshot Details",
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 8 },
+      "targets": [
+        {
+          "expr": "restic_snapshot_details",
+          "legendFormat": "{{id}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "columns": [
+          { "text": "ID", "value": "id" },
+          { "text": "Date", "value": "date" },
+          { "text": "Host", "value": "host" },
+          { "text": "Tags", "value": "tags" },
+          { "text": "Directory", "value": "directory" },
+          { "text": "Size (Bytes)", "value": "size" }
+        ],
+        "sortBy": [
+          {
+            "displayName": "date",
+            "desc": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "time_series",
+      "title": "Snapshot Sizes Over Time",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "restic_snapshot_details",
+          "legendFormat": "{{id}} - {{host}}",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0.5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    }
+  ],
+  "preload": false,
+  "refresh": "10s",
+  "schemaVersion": 36,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Restic Prometheus Exporter",
+  "uid": "restic-dashboard",
+  "version": 1,
+  "weekStart": ""
+}
