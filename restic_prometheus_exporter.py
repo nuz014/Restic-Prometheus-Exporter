@@ -117,11 +117,11 @@ def update_prometheus_metrics(config):
         numeric_size = float(snapshot["size"]) if isinstance(snapshot["size"], (int, float, str)) else 0
 
         # Ensure other parameters are properly formatted
-        snapshot_id = str(snapshot["id"]) if snapshot["id"] else "unknown"
-        snapshot_date = str(snapshot["time"]) if snapshot["time"] else "unknown"
-        snapshot_host = str(snapshot["hostname"]) if snapshot["hostname"] else "unknown"
-        snapshot_tags = str(snapshot["tags"]) if snapshot["tags"] else "none"
-        snapshot_directory = str(snapshot["directory"]) if snapshot["directory"] else "unknown"
+        snapshot_id = str(snapshot["id"]).strip() if snapshot["id"] else "unknown"
+        snapshot_date = str(snapshot["time"]).strip() if snapshot["time"] else "unknown"
+        snapshot_host = str(snapshot["hostname"]).strip() if snapshot["hostname"] else "unknown"
+        snapshot_tags = str(snapshot["tags"]).strip() if snapshot["tags"] else "none"
+        snapshot_directory = str(snapshot["directory"]).strip() if snapshot["directory"] else "unknown"
 
         # Set the metric with labels and use the size as the value
         SNAPSHOT_DETAILS.labels(
