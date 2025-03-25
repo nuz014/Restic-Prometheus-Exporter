@@ -9,7 +9,7 @@ import time
 # Define Prometheus metrics
 SNAPSHOT_COUNT = Gauge('restic_snapshot_count', 'Number of restic snapshots')
 SNAPSHOT_DETAILS = Gauge('restic_snapshot_details', 'Details of each restic snapshot',
-                         ['id', 'date', 'host', 'tags', 'directory', 'size'])
+                         ['id', 'date', 'host', 'tags', 'directory'])
 
 def load_config(config_file=None):
     """Loads configuration from a file or environment variables."""
@@ -123,14 +123,14 @@ def update_prometheus_metrics(config):
         snapshot_tags = str(snapshot["tags"]) if snapshot["tags"] else "none"
         snapshot_directory = str(snapshot["directory"]) if snapshot["directory"] else "unknown"
 
+        # Set the metric with labels and use the size as the value
         SNAPSHOT_DETAILS.labels(
             id=snapshot_id,
             date=snapshot_date,
             host=snapshot_host,
             tags=snapshot_tags,
-            directory=snapshot_directory,
-            size=numeric_size  # Export size as a numeric value
-        ).set(1)
+            directory=snapshot_directory
+        ).set(numeric_size)
 
 def main():
     # Load configuration
