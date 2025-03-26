@@ -57,7 +57,7 @@ def parse_size(size_str):
     try:
         size_value = float(size_value)
         return size_value * size_units.get(size_unit, 1)  # Convert to bytes
-    except ValueError:
+    except (ValueError, KeyError):
         return 0  # Default to 0 if parsing fails
 
 def export_snapshots(config):
@@ -90,7 +90,8 @@ def export_snapshots(config):
         host = fields[3]
         tags = fields[4]
         directory = fields[5]
-        size = parse_size(" ".join(fields[6:]))  # Parse size from the remaining fields
+        size_str = " ".join(fields[6:])  # Combine remaining fields for size
+        size = parse_size(size_str)  # Parse size from the combined string
 
         # Append snapshot details
         snapshots.append({
@@ -114,7 +115,7 @@ def update_prometheus_metrics(config):
     # Update snapshot details metrics
     for snapshot in snapshots:
         # Ensure the size is a numeric value
-        numeric_size = float(snapshot["size"]) if isinstance(snapshot["size"], (int, float, str)) else 0
+        numeric_size = float(snapshot["size"]) if isinstance(snapshot["size"], (int, float)) else 0
 
         # Ensure other parameters are properly formatted
         snapshot_id = str(snapshot["id"]).strip() if snapshot["id"] else "unknown"
