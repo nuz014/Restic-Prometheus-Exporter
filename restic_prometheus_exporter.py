@@ -5,11 +5,14 @@ import sys
 import configparser  # For reading configuration files
 from prometheus_client import start_http_server, Gauge
 import time
+import datetime  # Import datetime for timestamp conversion
 
 # Define Prometheus metrics
 SNAPSHOT_COUNT = Gauge('restic_snapshot_count', 'Number of restic snapshots')
 SNAPSHOT_DETAILS = Gauge('restic_snapshot_details', 'Details of each restic snapshot',
                          ['id', 'date', 'host', 'tags', 'directory'])
+SNAPSHOT_TIMESTAMP = Gauge('restic_snapshot_timestamp', 'Timestamp of each restic snapshot',
+                           ['id', 'host', 'tags', 'directory'])
 
 def load_config(config_file=None):
     """Loads configuration from a file or environment variables."""
@@ -105,6 +108,14 @@ def export_snapshots(config):
 
     return snapshots
 
+def convert_to_timestamp(date_str):
+    """Converts a date string (e.g., '2024-11-07 16:26:17') to a Unix timestamp."""
+    try:
+        dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        return int(dt.timestamp())
+    except ValueError:
+        return 0  # Default to 0 if parsing fails
+
 def update_prometheus_metrics(config):
     """Fetches the restic snapshots and updates Prometheus metrics."""
     snapshots = export_snapshots(config)
@@ -124,6 +135,9 @@ def update_prometheus_metrics(config):
         snapshot_tags = str(snapshot["tags"]).strip() if snapshot["tags"] else "none"
         snapshot_directory = str(snapshot["directory"]).strip() if snapshot["directory"] else "unknown"
 
+        # Convert the date to a Unix timestamp
+        timestamp = convert_to_timestamp(snapshot_date)
+
         # Set the metric with labels and use the size as the value
         SNAPSHOT_DETAILS.labels(
             id=snapshot_id,
@@ -132,6 +146,14 @@ def update_prometheus_metrics(config):
             tags=snapshot_tags,
             directory=snapshot_directory
         ).set(numeric_size)
+
+        # Set the timestamp metric
+        SNAPSHOT_TIMESTAMP.labels(
+            id=snapshot_id,
+            host=snapshot_host,
+            tags=snapshot_tags,
+            directory=snapshot_directory
+        ).set(timestamp)
 
 def main():
     # Load configuration
