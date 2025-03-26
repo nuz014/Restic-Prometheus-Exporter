@@ -18,13 +18,53 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
   "links": [],
   "panels": [
     {
-      "type": "stat",
-      "title": "Total Snapshots",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "expr": "restic_snapshot_count",
@@ -32,58 +72,118 @@
           "refId": "A"
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": ["last"],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "horizontal"
+      "title": "Total Snapshots",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ddvopxh6a5fk0a"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "none"
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
         },
         "overrides": []
-      }
-    },
-    {
-      "type": "table",
-      "title": "Snapshot Details",
-      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 8 },
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "cellHeight": "sm",
+        "columns": [
+          {
+            "text": "Hostname",
+            "value": "host"
+          },
+          {
+            "text": "Path",
+            "value": "directory"
+          },
+          {
+            "text": "ID",
+            "value": "id"
+          }
+        ],
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 5,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "date"
+          }
+        ]
+      },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
-          "expr": "restic_snapshot_details",
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "topk(10, restic_snapshot_details)",
+          "format": "table",
+          "instant": false,
           "legendFormat": "{{id}}",
+          "range": true,
           "refId": "B"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {}
-        },
-        "overrides": []
-      },
-      "options": {
-        "showHeader": true,
-        "columns": [
-          { "text": "ID", "value": "id" },
-          { "text": "Time", "value": "date" },
-          { "text": "Size (Bytes)", "value": "size" },
-          { "text": "Hostname", "value": "host" }
-        ],
-        "sortBy": [
-          {
-            "displayName": "date",
-            "desc": true
-          }
-        ]
-      }
+      "title": "Latest 10 Snapshots",
+      "type": "table"
     },
     {
-      "type": "time_series",
-      "title": "Snapshot Sizes Over Time",
-      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "expr": "restic_snapshot_details",
@@ -91,31 +191,54 @@
           "refId": "C"
         }
       ],
+      "title": "Snapshot Sizes Over Time",
+      "type": "time_series"
+    },
+    {
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0.5
-          }
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
       "options": {
-        "tooltip": {
-          "mode": "single"
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
         },
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom"
-        }
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Repository Check",
-      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "expr": "restic_check_success",
@@ -123,25 +246,54 @@
           "refId": "D"
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": ["last"],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "horizontal"
-      },
+      "title": "Repository Check",
+      "type": "stat"
+    },
+    {
       "fieldConfig": {
         "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
           "unit": "none"
         },
         "overrides": []
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Repository Locks",
-      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 16
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "expr": "restic_locks_total",
@@ -149,55 +301,80 @@
           "refId": "E"
         }
       ],
-      "options": {
-        "reduceOptions": {
-          "calcs": ["last"],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "horizontal"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none"
-        },
-        "overrides": []
-      }
+      "title": "Repository Locks",
+      "type": "stat"
     },
     {
-      "type": "table",
-      "title": "Total Backup Size & Files",
-      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "columns": [
+          {
+            "text": "Backup Size (Bytes)",
+            "value": "size"
+          }
+        ],
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.6.0",
       "targets": [
         {
           "expr": "restic_backup_size_total",
           "legendFormat": "Total Backup Size",
           "refId": "F"
-        },
-        {
-          "expr": "restic_backup_files_total",
-          "legendFormat": "Total Backup Files",
-          "refId": "G"
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "options": {
-        "showHeader": true,
-        "columns": [
-          { "text": "Backup Size (Bytes)", "value": "size" },
-          { "text": "Backup Files", "value": "files" }
-        ]
-      }
+      "title": "Total Backup Size",
+      "type": "table"
     }
   ],
+  "preload": false,
   "refresh": "10s",
-  "schemaVersion": 36,
-  "tags": ["restic", "prometheus"],
+  "schemaVersion": 41,
+  "tags": [
+    "restic",
+    "prometheus"
+  ],
   "templating": {
     "list": []
   },
@@ -205,33 +382,9 @@
     "from": "now-7d",
     "to": "now"
   },
-  "timepicker": {
-    "refresh_intervals": [
-      "5s",
-      "10s",
-      "30s",
-      "1m",
-      "5m",
-      "15m",
-      "30m",
-      "1h",
-      "2h",
-      "1d"
-    ],
-    "time_options": [
-      "5m",
-      "15m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d",
-      "30d"
-    ]
-  },
+  "timepicker": {},
   "timezone": "",
   "title": "Restic Exporter Dashboard",
   "uid": "restic-dashboard",
-  "version": 1
+  "version": 3
 }
