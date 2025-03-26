@@ -48,7 +48,7 @@ def run_restic_command(command, env):
         sys.exit(1)
 
 def parse_size(size_str):
-    """Parses a size string (e.g., '3.419 GiB') and converts it to bytes."""
+    """Parses a size string (e.g., '3.419 GiB') and converts it to bytes(IEC)."""
     size_units = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
     parts = size_str.split()
     if len(parts) != 2:
