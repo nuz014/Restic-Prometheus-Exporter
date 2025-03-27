@@ -12,7 +12,7 @@ SNAPSHOT_COUNT = Gauge('restic_snapshot_count', 'Number of restic snapshots')
 SNAPSHOT_DETAILS = Gauge('restic_snapshot_details', 'Details of each restic snapshot',
                          ['id', 'date', 'host', 'tags', 'directory'])
 SNAPSHOT_TIMESTAMP = Gauge('restic_snapshot_timestamp', 'Timestamp of each restic snapshot',
-                           ['id', 'host', 'tags', 'directory'])
+                           ['date', 'id', 'host'])
 
 def load_config(config_file=None):
     """Loads configuration from a file or environment variables."""
@@ -150,9 +150,7 @@ def update_prometheus_metrics(config):
         # Set the timestamp metric
         SNAPSHOT_TIMESTAMP.labels(
             id=snapshot_id,
-            host=snapshot_host,
-            tags=snapshot_tags,
-            directory=snapshot_directory
+            host=snapshot_host
         ).set(timestamp)
 
 def main():
