@@ -142,7 +142,7 @@ def update_prometheus_metrics(config):
         SNAPSHOT_DETAILS.labels(
             host=snapshot_host,
             id=snapshot_id,
-            date=snapshot_date,
+            date=str(timestamp),  # Use the Unix timestamp as the date label
             tags=snapshot_tags,
             directory=snapshot_directory
         ).set(numeric_size)
@@ -151,7 +151,7 @@ def update_prometheus_metrics(config):
         SNAPSHOT_TIMESTAMP.labels(
             host=snapshot_host,
             id=snapshot_id,
-            date=snapshot_date
+            date=str(timestamp)  # Use the Unix timestamp as the date label
         ).set(timestamp)
 
 def main():
