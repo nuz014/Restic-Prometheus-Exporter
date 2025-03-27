@@ -10,9 +10,9 @@ import datetime  # Import datetime for timestamp conversion
 # Define Prometheus metrics
 SNAPSHOT_COUNT = Gauge('restic_snapshot_count', 'Number of restic snapshots')
 SNAPSHOT_DETAILS = Gauge('restic_snapshot_details', 'Details of each restic snapshot',
-                         ['id', 'date', 'host', 'tags', 'directory'])
+                         ['host', 'date', 'id', 'tags', 'directory'])
 SNAPSHOT_TIMESTAMP = Gauge('restic_snapshot_timestamp', 'Timestamp of each restic snapshot',
-                           ['date', 'id', 'host'])
+                           ['host', 'date', 'id'])
 
 def load_config(config_file=None):
     """Loads configuration from a file or environment variables."""
@@ -140,18 +140,18 @@ def update_prometheus_metrics(config):
 
         # Set the metric with labels and use the size as the value
         SNAPSHOT_DETAILS.labels(
-            id=snapshot_id,
+            id=snapshot_host,
             date=snapshot_date,
-            host=snapshot_host,
+            host=snapshot_id,
             tags=snapshot_tags,
             directory=snapshot_directory
         ).set(numeric_size)
 
         # Set the timestamp metric
         SNAPSHOT_TIMESTAMP.labels(
-            id=snapshot_id,
+            host=snapshot_host,
             date=snapshot_date,
-            host=snapshot_host
+            id=snapshot_id
         ).set(timestamp)
 
 def main():
