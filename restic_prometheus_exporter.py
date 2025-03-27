@@ -150,6 +150,7 @@ def update_prometheus_metrics(config):
         # Set the timestamp metric
         SNAPSHOT_TIMESTAMP.labels(
             id=snapshot_id,
+            date=snapshot_date,
             host=snapshot_host
         ).set(timestamp)
 
