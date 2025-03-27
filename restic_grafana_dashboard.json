@@ -427,6 +427,89 @@
       ],
       "title": "Repository Locks",
       "type": "stat"
+    },
+    {
+      "type": "table",
+      "title": "Snapshots Grouped by Path",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "restic_snapshot_details",
+          "legendFormat": "{{directory}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "columns": [
+          { "text": "Path", "value": "directory" },
+          { "text": "Hostname", "value": "host" },
+          { "text": "Snapshot ID", "value": "id" },
+          { "text": "Size (Bytes)", "value": "size" }
+        ],
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "directory"
+          }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Snapshot Sizes by Path Over Time",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum by(directory) (restic_snapshot_details)",
+          "legendFormat": "{{directory}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0.5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
     }
   ],
   "preload": false,

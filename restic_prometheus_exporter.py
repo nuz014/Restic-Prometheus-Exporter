@@ -144,7 +144,7 @@ def update_prometheus_metrics(config):
             id=snapshot_id,
             date=str(timestamp),  # Use the Unix timestamp as the date label
             tags=snapshot_tags,
-            directory=snapshot_directory
+            directory=snapshot_directory  # Group by directory
         ).set(numeric_size)
 
         # Set the timestamp metric
