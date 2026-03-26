@@ -48,7 +48,7 @@ A Prometheus exporter for monitoring Restic backup repositories. Exposes snapsho
 
 2. Edit the configuration file:
    ```bash
-   sudo vi /etc/restic_exporter/config.ini
+   sudo vi /opt/restic_exporter/config.ini
    ```
 
 3. Start the service:
@@ -81,7 +81,7 @@ A Prometheus exporter for monitoring Restic backup repositories. Exposes snapsho
 
 ## Configuration
 
-Edit the configuration file with your Restic repository details. When installed via RPM, the config is at `/etc/restic_exporter/config.ini`. For manual installs, use `config.ini` in the project directory.
+Edit the configuration file with your Restic repository details. When installed via RPM, the config is at `/opt/restic_exporter/config.ini`. For manual installs, use `config.ini` in the project directory.
 
 ```ini
 [restic]

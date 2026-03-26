@@ -24,9 +24,11 @@ jobs:
 
     - name: Build .rpm package
       run: |
+        VERSION="${{ github.ref_name }}"
+        VERSION="${VERSION#v}"
         pip3 install prometheus_client
         fpm -s dir -t rpm -n restic-prometheus-exporter \
-            --version ${{ github.ref_name }} --iteration 1 \
+            --version "${VERSION}" --iteration 1 \
             --description "Prometheus exporter for restic backup metrics" \
             --rpm-os linux \
             --rpm-dist el9 \
@@ -36,9 +38,10 @@ jobs:
             --depends python3-prometheus_client \
             --after-install debian/postinst \
             --after-remove debian/postrm \
+            --config-files /opt/restic_exporter/config.ini \
             restic_prometheus_exporter.py=/opt/restic_exporter/restic_prometheus_exporter.py \
             restic_exporter.service=/usr/lib/systemd/system/restic_exporter.service \
-            "config example.ini"=/etc/restic_exporter/config.ini \
+            "config example.ini"=/opt/restic_exporter/config.ini \
             debian/restic_exporter=/opt/restic_exporter/debian/restic_exporter
 
     - name: Generate .repo file
