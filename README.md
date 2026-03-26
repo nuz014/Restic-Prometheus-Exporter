@@ -94,15 +94,19 @@ secret_access_key = your-secret-key
 
 [exporter]
 port = 9150
-update_interval = 1
+# update_interval = 60
+schedule_time = 14:00
+timezone = Europe/Oslo
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `port` | `9150` | HTTP port for the metrics endpoint |
-| `update_interval` | `1` | How often to refresh snapshot/stats metrics (minutes) |
+| `update_interval` | `60` | How often to refresh metrics (minutes). Ignored if `schedule_time` is set |
+| `schedule_time` | — | Run once daily at this time (HH:MM). Overrides `update_interval` |
+| `timezone` | `UTC` | Timezone for `schedule_time` (e.g. `Europe/Oslo`) |
 
-All options can also be set via environment variables: `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `EXPORTER_PORT`, `UPDATE_INTERVAL`.
+All options can also be set via environment variables: `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `EXPORTER_PORT`, `UPDATE_INTERVAL`, `SCHEDULE_TIME`, `TIMEZONE`.
 
 ## Usage
 
