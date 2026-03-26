@@ -9,7 +9,7 @@ A Prometheus exporter for monitoring Restic backup repositories. Exposes snapsho
 - Per-directory snapshot size tracking (from snapshot summary data)
 - Lock detection
 - Repository size metrics (raw disk usage, restore size, deduplication ratio)
-- All commands run with `--no-lock` so the exporter works while backups are running
+- All commands run with `--no-lock` so the exporter works while backups are running.
 
 ## Metrics
 
