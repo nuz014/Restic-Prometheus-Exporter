@@ -41,8 +41,7 @@ jobs:
             --config-files /opt/restic_exporter/config.ini \
             restic_prometheus_exporter.py=/opt/restic_exporter/restic_prometheus_exporter.py \
             restic_exporter.service=/usr/lib/systemd/system/restic_exporter.service \
-            "config example.ini"=/opt/restic_exporter/config.ini \
-            debian/restic_exporter=/opt/restic_exporter/debian/restic_exporter
+            "config example.ini"=/opt/restic_exporter/config.ini
 
     - name: Generate .repo file
       run: |

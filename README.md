@@ -36,7 +36,7 @@ A Prometheus exporter for monitoring Restic backup repositories. Exposes snapsho
 
 1. Download and install the latest `.rpm` from the [Releases](../../releases) page:
    ```bash
-   sudo dnf install restic-prometheus-exporter-<version>.rpm
+   sudo dnf install ./restic-prometheus-exporter-<version>.rpm
    ```
 
    Or add the repo for automatic updates:

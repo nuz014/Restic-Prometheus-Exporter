@@ -3,17 +3,8 @@ set -e
 
 # Create user if it doesn't exist
 if ! id -u restic_exporter >/dev/null 2>&1; then
-    useradd --system --no-create-home --shell /usr/sbin/nologin restic_exporter
+    useradd --system --no-create-home --shell /sbin/nologin restic_exporter
 fi
-
-# Ensure sudoers file is installed
-if [ ! -f /etc/sudoers.d/restic_exporter ]; then
-    install -m 0440 -o root -g root /opt/restic_exporter/debian/restic_exporter /etc/sudoers.d/restic_exporter
-    chmod 0440 /etc/sudoers.d/restic_exporter
-    chown root:root /etc/sudoers.d/restic_exporter
-fi
-
-visudo -cf /etc/sudoers.d/restic_exporter
 
 # Reload systemd and enable the service
 systemctl daemon-reload

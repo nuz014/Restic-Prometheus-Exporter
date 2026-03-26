@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-if [ "$1" = "remove" ]; then
+# RPM passes 0 on full uninstall, 1 on upgrade
+if [ "$1" = "0" ]; then
     # Stop and disable the service
     systemctl stop restic_exporter.service || true
     systemctl disable restic_exporter.service || true
@@ -10,6 +11,9 @@ if [ "$1" = "remove" ]; then
     if id -u restic_exporter >/dev/null 2>&1; then
         userdel restic_exporter
     fi
+
+    # Remove sudoers file if it exists
+    rm -f /etc/sudoers.d/restic_exporter
 
     # Remove leftover files
     rm -rf /opt/restic_exporter
