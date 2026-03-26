@@ -31,7 +31,7 @@ jobs:
             --version "${VERSION}" --iteration 1 \
             --description "Prometheus exporter for restic backup metrics" \
             --rpm-os linux \
-            --rpm-dist el9 \
+            --rpm-dist el8 \
             --depends python3 \
             --depends python3-pip \
             --depends restic \
