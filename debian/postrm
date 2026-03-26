@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+if [ "$1" = "remove" ]; then
+    # Stop and disable the service
+    systemctl stop restic_exporter.service || true
+    systemctl disable restic_exporter.service || true
+
+    # Remove the user
+    if id -u restic_exporter >/dev/null 2>&1; then
+        userdel restic_exporter
+    fi
+
+    # Remove leftover files
+    rm -rf /opt/restic_exporter
+
+    # Remove the systemd service file
+    rm -f /usr/lib/systemd/system/restic_exporter.service
+
+    systemctl daemon-reload
+fi

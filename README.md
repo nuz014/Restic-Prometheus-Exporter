@@ -1,17 +1,28 @@
 # Restic Prometheus Exporter
 
-This project provides a Prometheus exporter for monitoring Restic snapshots. It collects details about Restic snapshots, such as ID, date, host, tags, directory, and size, and exposes them as Prometheus metrics.
+A Prometheus exporter for monitoring Restic backup repositories. Exposes snapshot details, repository health, storage usage, and backup freshness as Prometheus metrics. Includes a Grafana dashboard for visualization.
 
 ## Features
 
-- Exports the number of Restic snapshots.
-- Exports detailed information about each snapshot, including:
-  - Snapshot ID
-  - Date
-  - Host
-  - Tags
-  - Directory
-  - Size (in bytes)
+- Snapshot count and per-snapshot details (host, tags, directory, timestamp)
+- Backup freshness tracking (latest snapshot age per host/directory)
+- Per-directory snapshot size tracking (from snapshot summary data)
+- Lock detection
+- Repository size metrics (raw disk usage, restore size, deduplication ratio)
+- All commands run with `--no-lock` so the exporter works while backups are running
+
+## Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `restic_snapshot_count` | Gauge | — | Total number of snapshots |
+| `restic_snapshot_timestamp` | Gauge | host, id, date, tags, directory | Unix timestamp of each snapshot |
+| `restic_snapshot_latest_timestamp` | Gauge | host, directory | Timestamp of the newest snapshot per host/directory |
+| `restic_snapshot_latest_size_bytes` | Gauge | host, directory | Size in bytes of the latest snapshot per host/directory |
+| `restic_locks_total` | Gauge | — | Number of active repository locks |
+| `restic_repo_raw_size_bytes` | Gauge | — | Repository size on disk |
+| `restic_repo_restore_size_bytes` | Gauge | — | Total restore size of all snapshots |
+| `restic_repo_file_count` | Gauge | — | Total number of files across all snapshots |
 
 ## Prerequisites
 
@@ -21,41 +32,86 @@ This project provides a Prometheus exporter for monitoring Restic snapshots. It 
 
 ## Installation
 
+### RPM (RHEL/CentOS/Fedora)
+
+1. Download and install the latest `.rpm` from the [Releases](../../releases) page:
+   ```bash
+   sudo dnf install restic-prometheus-exporter-<version>.rpm
+   ```
+
+   Or add the repo for automatic updates:
+   ```bash
+   sudo curl -o /etc/yum.repos.d/restic-prometheus-exporter.repo \
+     https://github.com/<owner>/restic-exporter/releases/download/<version>/restic-prometheus-exporter.repo
+   sudo dnf install restic-prometheus-exporter
+   ```
+
+2. Edit the configuration file:
+   ```bash
+   sudo vi /etc/restic_exporter/config.ini
+   ```
+
+3. Start the service:
+   ```bash
+   sudo systemctl enable --now restic_exporter.service
+   ```
+
+### Manual
+
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-repo/restic-exporter.git
+   git clone https://github.com/<owner>/restic-exporter.git
    cd restic-exporter
    ```
 
 2. Install required Python dependencies:
    ```bash
-   pip install prometheus_client
+   pip install -r requirements.txt
    ```
 
-3. Configure your Restic repository and credentials in the `config.ini` file:
-   ```ini
-   [restic]
-   repository =
-   password =
-
-   [aws]
-   access_key_id =
-   secret_access_key =
+3. Copy and edit the configuration file:
+   ```bash
+   cp "config example.ini" config.ini
    ```
 
-## Usage
-
-1. Run the exporter:
+4. Run the exporter:
    ```bash
    python restic_prometheus_exporter.py config.ini
    ```
 
-2. The exporter will start a Prometheus metrics server on port `9150` and expose metrics at:
+## Configuration
+
+Edit the configuration file with your Restic repository details. When installed via RPM, the config is at `/etc/restic_exporter/config.ini`. For manual installs, use `config.ini` in the project directory.
+
+```ini
+[restic]
+repository = s3:https://your-s3-endpoint/bucket-name
+password = your-restic-password
+
+[aws]
+access_key_id = your-access-key
+secret_access_key = your-secret-key
+
+[exporter]
+port = 9150
+update_interval = 1
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `port` | `9150` | HTTP port for the metrics endpoint |
+| `update_interval` | `1` | How often to refresh snapshot/stats metrics (minutes) |
+
+All options can also be set via environment variables: `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `EXPORTER_PORT`, `UPDATE_INTERVAL`.
+
+## Usage
+
+1. Metrics are available at:
    ```
    http://localhost:9150/metrics
    ```
 
-3. Add the following scrape configuration to your Prometheus configuration file (`prometheus.yml`):
+2. Add to your Prometheus configuration (`prometheus.yml`):
    ```yaml
    scrape_configs:
      - job_name: "restic_exporter"
@@ -63,42 +119,22 @@ This project provides a Prometheus exporter for monitoring Restic snapshots. It 
          - targets: ["localhost:9150"]
    ```
 
-4. Restart Prometheus to apply the changes.
+## Grafana Dashboard
 
-## Metrics
+Import `restic_grafana_dashboard.json` into Grafana. The dashboard includes:
 
-The following metrics are exposed:
+- **Health Overview** — Total snapshots, active locks, time since last backup
+- **Storage** — Repository disk usage, total backup data size, deduplication ratio
+- **Backup Freshness** — Time since last backup per host/directory with a 24-hour threshold line
+- **Snapshots** — Latest snapshot per directory with timestamp and size
+- **Repository Size Over Time** — Disk usage and restore size trends
+- **Snapshot Size per Directory** — How each backup directory is growing over time
 
-- `restic_snapshot_count`: The total number of Restic snapshots.
-- `restic_snapshot_details`: Details of each Restic snapshot, with the following labels:
-  - `id`: Snapshot ID
-  - `date`: Snapshot date and time
-  - `host`: Hostname of the snapshot
-  - `tags`: Tags associated with the snapshot
-  - `directory`: Directory included in the snapshot
-  - `size`: Size of the snapshot in bytes
-
-## Example Output
-
-Example Prometheus metrics:
-```
-# HELP restic_snapshot_count Number of restic snapshots
-# TYPE restic_snapshot_count gauge
-restic_snapshot_count 2
-
-# HELP restic_snapshot_details Details of each restic snapshot
-# TYPE restic_snapshot_details gauge
-restic_snapshot_details{id="6c69486e",date="2024-11-07 16:26:17",host="metrics",tags="manual,prometheus",directory="/var/lib/prometheus",size="3670511616"} 1
-restic_snapshot_details{id="bbfc4e6d",date="2024-11-07 16:26:17",host="logs",tags="manual,graylog-server",directory="/usr/share/graylog-server/plugin",size="66074316"} 1
-```
+The dashboard uses a templated Prometheus datasource so you can select your own when importing.
 
 ## Troubleshooting
 
-- If you encounter errors, ensure that:
-  - Restic is installed and accessible in your `PATH`.
-  - The `config.ini` file is correctly configured with your repository and credentials.
-  - The Prometheus server is running and configured to scrape the exporter.
-
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+- Ensure Restic is installed and accessible in your `PATH`
+- Ensure `config.ini` is correctly configured with your repository and credentials
+- If the repository is locked by a running backup, the exporter will still work (all commands use `--no-lock`)
+- Check the exporter console output for error messages

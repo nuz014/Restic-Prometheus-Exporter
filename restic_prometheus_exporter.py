@@ -2,17 +2,37 @@ import os
 import subprocess
 import json
 import sys
-import configparser  # For reading configuration files
+import configparser
 from prometheus_client import start_http_server, Gauge
 import time
-import datetime  # Import datetime for timestamp conversion
+import datetime
 
-# Define Prometheus metrics
+# --- Prometheus Metrics ---
+
+# Snapshot metrics
 SNAPSHOT_COUNT = Gauge('restic_snapshot_count', 'Number of restic snapshots')
-SNAPSHOT_DETAILS = Gauge('restic_snapshot_details', 'Details of each restic snapshot',
-                         ['host', 'id', 'date', 'tags', 'directory'])
 SNAPSHOT_TIMESTAMP = Gauge('restic_snapshot_timestamp', 'Timestamp of each restic snapshot',
-                           ['host', 'id', 'date'])
+                           ['host', 'id', 'date', 'tags', 'directory'])
+SNAPSHOT_LATEST_TIMESTAMP = Gauge('restic_snapshot_latest_timestamp',
+                                  'Timestamp of the latest snapshot per host and directory',
+                                  ['host', 'directory'])
+SNAPSHOT_LATEST_SIZE = Gauge('restic_snapshot_latest_size_bytes',
+                             'Size in bytes of the latest snapshot per host and directory',
+                             ['host', 'directory'])
+
+# Repository health metrics
+LOCKS_TOTAL = Gauge('restic_locks_total', 'Number of active locks in the restic repository')
+
+# Repository size metrics
+REPO_RAW_SIZE = Gauge('restic_repo_raw_size_bytes', 'Raw size of the restic repository on disk')
+REPO_RESTORE_SIZE = Gauge('restic_repo_restore_size_bytes', 'Total restore size of all snapshots')
+REPO_FILE_COUNT = Gauge('restic_repo_file_count', 'Total number of files across all snapshots')
+
+def log(msg):
+    """Prints a timestamped log message."""
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{ts}] {msg}")
+
 
 def load_config(config_file=None):
     """Loads configuration from a file or environment variables."""
@@ -25,149 +45,209 @@ def load_config(config_file=None):
         config['AWS_SECRET_ACCESS_KEY'] = parser.get('aws', 'secret_access_key', fallback=None)
         config['RESTIC_PASSWORD'] = parser.get('restic', 'password', fallback=None)
         config['EXPORTER_PORT'] = parser.getint('exporter', 'port', fallback=9150)
-        config['UPDATE_INTERVAL'] = parser.getint('exporter', 'update_interval', fallback=30)
+        config['UPDATE_INTERVAL'] = parser.getint('exporter', 'update_interval', fallback=1) * 60
     else:
         config['RESTIC_REPOSITORY'] = os.getenv('RESTIC_REPOSITORY')
         config['AWS_ACCESS_KEY_ID'] = os.getenv('AWS_ACCESS_KEY_ID')
         config['AWS_SECRET_ACCESS_KEY'] = os.getenv('AWS_SECRET_ACCESS_KEY')
         config['RESTIC_PASSWORD'] = os.getenv('RESTIC_PASSWORD')
         config['EXPORTER_PORT'] = int(os.getenv('EXPORTER_PORT', 9150))
-        config['UPDATE_INTERVAL'] = int(os.getenv('UPDATE_INTERVAL', 30))
+        config['UPDATE_INTERVAL'] = int(os.getenv('UPDATE_INTERVAL', 1)) * 60
 
-    # Validate required fields
     if not all([config['RESTIC_REPOSITORY'], config['RESTIC_PASSWORD']]):
         print("Error: Missing required configuration for RESTIC_REPOSITORY or RESTIC_PASSWORD.", file=sys.stderr)
         sys.exit(1)
 
     return config
 
+
+def get_restic_env(config):
+    """Returns environment variables for restic commands."""
+    env = os.environ.copy()
+    env['RESTIC_PASSWORD'] = config['RESTIC_PASSWORD']
+    if config.get('AWS_ACCESS_KEY_ID'):
+        env['AWS_ACCESS_KEY_ID'] = config['AWS_ACCESS_KEY_ID']
+    if config.get('AWS_SECRET_ACCESS_KEY'):
+        env['AWS_SECRET_ACCESS_KEY'] = config['AWS_SECRET_ACCESS_KEY']
+    return env
+
+
 def run_restic_command(command, env):
-    """Runs a restic command with the provided environment variables."""
+    """Runs a restic command. Returns stdout on success, None on failure."""
+    cmd_str = ' '.join(command[:6])
     try:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True, env=env)
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                check=True, text=True, env=env)
         return result.stdout
     except subprocess.CalledProcessError as e:
-        print(f"Error running command: {e.stderr}", file=sys.stderr)
-        sys.exit(1)
+        stderr = e.stderr or ""
+        if "locked" in stderr:
+            log(f"SKIP {cmd_str}: repository is locked")
+        else:
+            log(f"ERROR {cmd_str}: {stderr.strip()}")
+        return None
 
-def parse_size(size_str):
-    """Parses a size string (e.g., '3.419 GiB') and converts it to bytes(IEC)."""
-    size_units = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
-    parts = size_str.split()
-    if len(parts) != 2:
-        return 0  # Default to 0 if the size format is unexpected
-    size_value, size_unit = parts
-    try:
-        size_value = float(size_value)
-        return size_value * size_units.get(size_unit, 1)  # Convert to bytes
-    except (ValueError, KeyError):
-        return 0  # Default to 0 if parsing fails
 
 def export_snapshots(config):
-    """Exports snapshots information from restic."""
-    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "snapshots"]
-    env = os.environ.copy()
-    env.update({
-        'AWS_ACCESS_KEY_ID': config['AWS_ACCESS_KEY_ID'],
-        'AWS_SECRET_ACCESS_KEY': config['AWS_SECRET_ACCESS_KEY'],
-        'RESTIC_PASSWORD': config['RESTIC_PASSWORD']
-    })
+    """Exports snapshot information from restic using JSON output."""
+    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "snapshots", "--json", "--no-lock"]
+    env = get_restic_env(config)
     output = run_restic_command(command, env)
 
-    # Parse human-readable output to extract fields
+    if output is None:
+        return []
+
+    try:
+        snapshots_json = json.loads(output)
+    except json.JSONDecodeError as e:
+        log(f"ERROR parsing snapshots JSON: {e}")
+        return []
+
     snapshots = []
-    lines = output.splitlines()
-    for line in lines:
-        # Skip header lines and empty lines
-        if line.startswith("ID") or line.startswith("---") or line.strip() == "":
-            continue
+    for snap in snapshots_json:
+        # Parse ISO 8601 timestamp
+        time_str = snap.get("time", "")
+        try:
+            dt = datetime.datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+            timestamp = int(dt.timestamp())
+        except (ValueError, AttributeError):
+            timestamp = 0
 
-        # Split the line into fields
-        fields = line.split()
-        if len(fields) < 6:
-            continue  # Skip malformed lines
+        tags = ",".join(snap.get("tags", [])) if snap.get("tags") else "none"
+        paths = ",".join(snap.get("paths", [])) if snap.get("paths") else "unknown"
 
-        # Extract fields
-        snapshot_id = fields[0]
-        date = fields[1] + " " + fields[2]
-        host = fields[3]
-        tags = fields[4]
-        directory = fields[5]
-        size_str = " ".join(fields[6:])  # Combine remaining fields for size
-        size = parse_size(size_str)  # Parse size from the combined string
+        summary = snap.get("summary", {})
+        size = summary.get("total_bytes_processed", 0) if summary else 0
 
-        # Append snapshot details
         snapshots.append({
-            "id": snapshot_id,
-            "time": date,
-            "hostname": host,
+            "id": snap.get("short_id", "unknown"),
+            "timestamp": timestamp,
+            "hostname": snap.get("hostname", "unknown"),
             "tags": tags,
-            "directory": directory,
-            "size": size
+            "directory": paths,
+            "size": size,
         })
 
     return snapshots
 
-def convert_to_timestamp(date_str):
-    """Converts a date string (e.g., '2024-11-07 16:26:17') to a Unix timestamp."""
-    try:
-        dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-        return int(dt.timestamp())
-    except ValueError:
-        return 0  # Default to 0 if parsing fails
+
+def export_stats(config):
+    """Exports repository statistics from restic."""
+    env = get_restic_env(config)
+
+    # Get restore size (default mode)
+    log("Fetching repo stats (restore-size mode)...")
+    command_restore = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock"]
+    output_restore = run_restic_command(command_restore, env)
+    if output_restore:
+        try:
+            stats = json.loads(output_restore)
+            restore_size = stats.get("total_size", 0)
+            file_count = stats.get("total_file_count", 0)
+            REPO_RESTORE_SIZE.set(restore_size)
+            REPO_FILE_COUNT.set(file_count)
+            log(f"  Restore size: {restore_size / (1024**3):.2f} GiB, Files: {file_count}")
+        except json.JSONDecodeError as e:
+            log(f"  ERROR parsing stats JSON: {e}")
+    else:
+        log("  No output from restic stats")
+
+    # Get raw repo size on disk
+    log("Fetching repo stats (raw-data mode)...")
+    command_raw = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "raw-data"]
+    output_raw = run_restic_command(command_raw, env)
+    if output_raw:
+        try:
+            stats_raw = json.loads(output_raw)
+            raw_size = stats_raw.get("total_size", 0)
+            REPO_RAW_SIZE.set(raw_size)
+            log(f"  Raw repo size: {raw_size / (1024**3):.2f} GiB")
+        except json.JSONDecodeError as e:
+            log(f"  ERROR parsing raw stats JSON: {e}")
+    else:
+        log("  No output from restic stats --mode raw-data")
+
+
+
+def export_locks(config):
+    """Counts the number of active locks in the restic repository."""
+    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "list", "locks", "--no-lock"]
+    env = get_restic_env(config)
+    output = run_restic_command(command, env)
+
+    if output is None:
+        return
+
+    lock_ids = [line.strip() for line in output.splitlines() if line.strip()]
+    LOCKS_TOTAL.set(len(lock_ids))
+    if lock_ids:
+        log(f"  Locks: {len(lock_ids)} active")
+
 
 def update_prometheus_metrics(config):
-    """Fetches the restic snapshots and updates Prometheus metrics."""
+    """Fetches restic data and updates all Prometheus metrics."""
+    log("--- Updating metrics ---")
+
+    # --- Snapshots ---
+    log("Fetching snapshots...")
     snapshots = export_snapshots(config)
-
-    # Update snapshot count metric
     SNAPSHOT_COUNT.set(len(snapshots))
+    log(f"  Found {len(snapshots)} snapshots")
 
-    # Update snapshot details metrics
+    # Track latest timestamp and snapshot ID per (host, directory)
+    latest_per_host_dir = {}
+
     for snapshot in snapshots:
-        # Ensure the size is a numeric value
-        numeric_size = float(snapshot["size"]) if isinstance(snapshot["size"], (int, float)) else 0
+        snapshot_id = snapshot["id"]
+        timestamp = snapshot["timestamp"]
+        host = snapshot["hostname"]
+        tags = snapshot["tags"]
+        directory = snapshot["directory"]
 
-        # Ensure other parameters are properly formatted
-        snapshot_id = str(snapshot["id"]).strip() if snapshot["id"] else "unknown"
-        snapshot_date = str(snapshot["time"]).strip() if snapshot["time"] else "unknown"
-        snapshot_host = str(snapshot["hostname"]).strip() if snapshot["hostname"] else "unknown"
-        snapshot_tags = str(snapshot["tags"]).strip() if snapshot["tags"] else "none"
-        snapshot_directory = str(snapshot["directory"]).strip() if snapshot["directory"] else "unknown"
-
-        # Convert the date to a Unix timestamp
-        timestamp = convert_to_timestamp(snapshot_date)
-
-        # Set the metric with labels and use the size as the value
-        SNAPSHOT_DETAILS.labels(
-            host=snapshot_host,
-            id=snapshot_id,
-            date=str(timestamp),  # Use the Unix timestamp as the date label
-            tags=snapshot_tags,
-            directory=snapshot_directory  # Group by directory
-        ).set(numeric_size)
-
-        # Set the timestamp metric
         SNAPSHOT_TIMESTAMP.labels(
-            host=snapshot_host,
+            host=host,
             id=snapshot_id,
-            date=str(timestamp)  # Use the Unix timestamp as the date label
+            date=str(timestamp),
+            tags=tags,
+            directory=directory
         ).set(timestamp)
 
+        # Track latest snapshot per host/directory
+        key = (host, directory)
+        if key not in latest_per_host_dir or timestamp > latest_per_host_dir[key][0]:
+            latest_per_host_dir[key] = (timestamp, snapshot["size"])
+
+    # Set latest timestamp and size metrics
+    for (host, directory), (timestamp, size) in latest_per_host_dir.items():
+        SNAPSHOT_LATEST_TIMESTAMP.labels(host=host, directory=directory).set(timestamp)
+        SNAPSHOT_LATEST_SIZE.labels(host=host, directory=directory).set(size)
+        age_hours = (time.time() - timestamp) / 3600
+        log(f"  Latest backup for {host}:{directory} — {age_hours:.1f} hours ago, {size / (1024**3):.2f} GiB")
+
+    # --- Repository stats ---
+    export_stats(config)
+
+    # --- Locks ---
+    log("Checking locks...")
+    export_locks(config)
+
+    log("--- Done ---\n")
+
+
 def main():
-    # Load configuration
     config_file = sys.argv[1] if len(sys.argv) > 1 else None
     config = load_config(config_file)
 
-    # Start the Prometheus server on the configured port
-    start_http_server(config['EXPORTER_PORT'])
-    print(f"Prometheus metrics server is running on :{config['EXPORTER_PORT']}/metrics")
+    log(f"Repository: {config['RESTIC_REPOSITORY']}")
+    log(f"Update interval: {config['UPDATE_INTERVAL']}s ({config['UPDATE_INTERVAL']//60}min)")
 
-    # Collect data at the configured interval
+    start_http_server(config['EXPORTER_PORT'])
+    log(f"Prometheus metrics server running on :{config['EXPORTER_PORT']}/metrics")
+
     while True:
         update_prometheus_metrics(config)
-        time.sleep(config['UPDATE_INTERVAL'])  # Adjust based on the configured interval
+        time.sleep(config['UPDATE_INTERVAL'])
+
 
 if __name__ == "__main__":
     main()
-

@@ -1,0 +1,12 @@
+[Unit]
+Description=Prometheus Exporter for restic Metrics
+After=network.target
+
+[Service]
+User=restic_exporter
+ExecStart=/bin/python3 /opt/restic_exporter/restic_prometheus_exporter.py
+Environment="PYTHONPATH=/usr/local/lib/python3.6/site-packages:/usr/local/lib/python3.7/site-packages:/usr/local/lib/python3.8/site-packages:/usr/local/lib/python3.9/site-packages:/usr/local/lib/python3.10/site-packages"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
