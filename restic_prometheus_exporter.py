@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import json
 import sys
@@ -113,7 +114,10 @@ def export_snapshots(config):
         # Parse ISO 8601 timestamp
         time_str = snap.get("time", "")
         try:
-            dt = datetime.datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+            # Truncate sub-microsecond precision (restic uses nanoseconds),
+            # since fromisoformat() only supports up to 6 decimal digits on Python < 3.11
+            time_str = re.sub(r'(\.\d{6})\d+', r'\1', time_str.replace("Z", "+00:00"))
+            dt = datetime.datetime.fromisoformat(time_str)
             timestamp = int(dt.timestamp())
         except (ValueError, AttributeError):
             timestamp = 0
