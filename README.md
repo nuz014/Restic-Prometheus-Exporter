@@ -32,32 +32,6 @@ A Prometheus exporter for monitoring Restic backup repositories. Exposes snapsho
 
 ## Installation
 
-### RPM (RHEL/CentOS/Fedora)
-
-1. Download and install the latest `.rpm` from the [Releases](../../releases) page:
-   ```bash
-   sudo dnf install ./restic-prometheus-exporter-<version>.rpm
-   ```
-
-   Or add the repo for automatic updates:
-   ```bash
-   sudo curl -o /etc/yum.repos.d/restic-prometheus-exporter.repo \
-     https://github.com/<owner>/restic-exporter/releases/download/<version>/restic-prometheus-exporter.repo
-   sudo dnf install restic-prometheus-exporter
-   ```
-
-2. Edit the configuration file:
-   ```bash
-   sudo vi /opt/restic_exporter/config.ini
-   ```
-
-3. Start the service:
-   ```bash
-   sudo systemctl enable --now restic_exporter.service
-   ```
-
-### Manual
-
 1. Clone this repository:
    ```bash
    git clone https://github.com/<owner>/restic-exporter.git

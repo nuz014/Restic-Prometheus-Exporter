@@ -1,1 +1,0 @@
-restic_exporter ALL=(root) NOPASSWD: /sbin/restic_exporter
