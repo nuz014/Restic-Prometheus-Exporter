@@ -120,7 +120,8 @@ def export_snapshots(config):
             dt = datetime.datetime.fromisoformat(time_str)
             timestamp = int(dt.timestamp())
         except (ValueError, AttributeError):
-            timestamp = 0
+            log(f"Warning: could not parse timestamp '{time_str}' for snapshot {snap.get('short_id', 'unknown')}, skipping")
+            continue
 
         tags = ",".join(snap.get("tags", [])) if snap.get("tags") else "none"
         paths = ",".join(snap.get("paths", [])) if snap.get("paths") else "unknown"

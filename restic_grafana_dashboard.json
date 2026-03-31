@@ -291,7 +291,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "time() - min(restic_snapshot_timestamp)",
+          "expr": "time() - min(restic_snapshot_latest_timestamp)",
           "legendFormat": "Oldest Backup Age",
           "refId": "A"
         }
