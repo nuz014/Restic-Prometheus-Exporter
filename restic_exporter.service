@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 User=restic_exporter
-ExecStart=/bin/python3 /opt/restic_exporter/restic_prometheus_exporter.py /opt/restic_exporter/config.ini
+ExecStart=/bin/python3 -u /opt/restic_exporter/restic_prometheus_exporter.py /opt/restic_exporter/config.ini
 Restart=always
 
 [Install]
