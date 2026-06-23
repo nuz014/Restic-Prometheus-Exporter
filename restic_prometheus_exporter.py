@@ -51,6 +51,7 @@ def load_config(config_file=None):
         config['UPDATE_INTERVAL'] = parser.getint('exporter', 'update_interval', fallback=60) * 60
         config['SCHEDULE_TIME'] = parser.get('exporter', 'schedule_time', fallback=None)
         config['TIMEZONE'] = parser.get('exporter', 'timezone', fallback='UTC')
+        config['RESTIC_BINARY'] = parser.get('restic', 'binary', fallback='/usr/local/bin/restic')
     else:
         config['RESTIC_REPOSITORY'] = os.getenv('RESTIC_REPOSITORY')
         config['AWS_ACCESS_KEY_ID'] = os.getenv('AWS_ACCESS_KEY_ID')
@@ -60,6 +61,7 @@ def load_config(config_file=None):
         config['UPDATE_INTERVAL'] = int(os.getenv('UPDATE_INTERVAL', 60)) * 60
         config['SCHEDULE_TIME'] = os.getenv('SCHEDULE_TIME')
         config['TIMEZONE'] = os.getenv('TIMEZONE', 'UTC')
+        config['RESTIC_BINARY'] = os.getenv('RESTIC_BINARY', '/usr/local/bin/restic')
 
     if not all([config['RESTIC_REPOSITORY'], config['RESTIC_PASSWORD']]):
         print("Error: Missing required configuration for RESTIC_REPOSITORY or RESTIC_PASSWORD.", file=sys.stderr)
@@ -93,6 +95,12 @@ def run_restic_command(command, env):
         else:
             log(f"ERROR {cmd_str}: {stderr.strip()}")
         return None
+    except OSError as e:
+        # restic couldn't be launched at all (not on PATH, not executable,
+        # noexec mount, SELinux denial, ...). Log and degrade instead of
+        # letting the exception crash the whole exporter.
+        log(f"ERROR {cmd_str}: could not execute restic: {e}")
+        return None
 
 
 def parse_restic_json(output):
@@ -120,7 +128,7 @@ def parse_restic_json(output):
 
 def export_snapshots(config):
     """Exports snapshot information from restic using JSON output."""
-    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "snapshots", "--json", "--no-lock"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "snapshots", "--json", "--no-lock"]
     env = get_restic_env(config)
     output = run_restic_command(command, env)
 
@@ -172,7 +180,7 @@ def export_restore_stats(config):
     """Exports restore-size repository statistics from restic."""
     env = get_restic_env(config)
     log("Fetching repo stats (restore-size mode)...")
-    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "blobs-per-file"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "blobs-per-file"]
     output = run_restic_command(command, env)
     if output:
         try:
@@ -192,7 +200,7 @@ def export_raw_stats(config):
     """Exports raw-data repository statistics from restic."""
     env = get_restic_env(config)
     log("Fetching repo stats (raw-data mode)...")
-    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "raw-data"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "raw-data"]
     output = run_restic_command(command, env)
     if output:
         try:
@@ -209,7 +217,7 @@ def export_raw_stats(config):
 
 def export_locks(config):
     """Counts the number of active locks in the restic repository."""
-    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "list", "locks", "--no-lock"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "list", "locks", "--no-lock"]
     env = get_restic_env(config)
     output = run_restic_command(command, env)
 
