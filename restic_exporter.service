@@ -4,6 +4,10 @@ After=network.target
 
 [Service]
 User=restic_exporter
+# systemd creates /var/cache/restic_exporter (owned by the service user) before
+# start; point restic's cache there so it doesn't need a home directory.
+CacheDirectory=restic_exporter
+Environment=RESTIC_CACHE_DIR=/var/cache/restic_exporter
 ExecStart=/bin/python3 -u /opt/restic_exporter/restic_prometheus_exporter.py /opt/restic_exporter/config.ini
 Restart=always
 
