@@ -95,6 +95,29 @@ def run_restic_command(command, env):
         return None
 
 
+def parse_restic_json(output):
+    """Parses restic --json output, tolerating progress lines on stdout.
+
+    During long operations restic emits status lines like
+    "[0:23] 45.67%  120 / 263 packs" to stdout, which get mixed in with the
+    JSON payload. Scan from the end for the last line that parses as JSON
+    (the machine-readable result is always emitted last)."""
+    output = (output or "").strip()
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError:
+        pass
+    for line in reversed(output.splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    raise json.JSONDecodeError("no JSON value found in restic output", output, 0)
+
+
 def export_snapshots(config):
     """Exports snapshot information from restic using JSON output."""
     command = ["restic", "-r", config['RESTIC_REPOSITORY'], "snapshots", "--json", "--no-lock"]
@@ -105,9 +128,9 @@ def export_snapshots(config):
         return []
 
     try:
-        snapshots_json = json.loads(output)
+        snapshots_json = parse_restic_json(output)
     except json.JSONDecodeError as e:
-        log(f"ERROR parsing snapshots JSON: {e}")
+        log(f"ERROR parsing snapshots JSON: {e} -- raw output: {output[:200]!r}")
         return []
 
     snapshots = []
@@ -115,9 +138,12 @@ def export_snapshots(config):
         # Parse ISO 8601 timestamp
         time_str = snap.get("time", "")
         try:
-            # Truncate sub-microsecond precision (restic uses nanoseconds),
-            # since fromisoformat() only supports up to 6 decimal digits on Python < 3.11
-            time_str = re.sub(r'(\.\d{6})\d+', r'\1', time_str.replace("Z", "+00:00"))
+            # Normalize fractional seconds to exactly 6 digits (pad or truncate).
+            # restic strips trailing zeros, so precision varies (e.g. ".74013"),
+            # but fromisoformat() on Python < 3.11 only accepts 3 or 6 digits.
+            time_str = re.sub(r'\.(\d+)',
+                              lambda m: "." + (m.group(1) + "000000")[:6],
+                              time_str.replace("Z", "+00:00"))
             dt = datetime.datetime.fromisoformat(time_str)
             timestamp = int(dt.timestamp())
         except (ValueError, AttributeError):
@@ -150,14 +176,14 @@ def export_restore_stats(config):
     output = run_restic_command(command, env)
     if output:
         try:
-            stats = json.loads(output)
+            stats = parse_restic_json(output)
             restore_size = stats.get("total_size", 0)
             file_count = stats.get("total_file_count", 0)
             REPO_RESTORE_SIZE.set(restore_size)
             REPO_FILE_COUNT.set(file_count)
             log(f"  Restore size: {restore_size / (1024**3):.2f} GiB, Files: {file_count}")
         except json.JSONDecodeError as e:
-            log(f"  ERROR parsing stats JSON: {e}")
+            log(f"  ERROR parsing stats JSON: {e} -- raw output: {output[:200]!r}")
     else:
         log("  No output from restic stats")
 
@@ -170,12 +196,12 @@ def export_raw_stats(config):
     output = run_restic_command(command, env)
     if output:
         try:
-            stats = json.loads(output)
+            stats = parse_restic_json(output)
             raw_size = stats.get("total_size", 0)
             REPO_RAW_SIZE.set(raw_size)
             log(f"  Raw repo size: {raw_size / (1024**3):.2f} GiB")
         except json.JSONDecodeError as e:
-            log(f"  ERROR parsing raw stats JSON: {e}")
+            log(f"  ERROR parsing raw stats JSON: {e} -- raw output: {output[:200]!r}")
     else:
         log("  No output from restic stats --mode raw-data")
 
