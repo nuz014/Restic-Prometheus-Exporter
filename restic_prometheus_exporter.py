@@ -4,6 +4,7 @@ import subprocess
 import json
 import sys
 import configparser
+from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 from prometheus_client import start_http_server, Gauge
 import time
@@ -141,17 +142,15 @@ def export_snapshots(config):
     return snapshots
 
 
-def export_stats(config):
-    """Exports repository statistics from restic."""
+def export_restore_stats(config):
+    """Exports restore-size repository statistics from restic."""
     env = get_restic_env(config)
-
-    # Get restore size (default mode)
     log("Fetching repo stats (restore-size mode)...")
-    command_restore = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock"]
-    output_restore = run_restic_command(command_restore, env)
-    if output_restore:
+    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "blobs-per-file"]
+    output = run_restic_command(command, env)
+    if output:
         try:
-            stats = json.loads(output_restore)
+            stats = json.loads(output)
             restore_size = stats.get("total_size", 0)
             file_count = stats.get("total_file_count", 0)
             REPO_RESTORE_SIZE.set(restore_size)
@@ -162,14 +161,17 @@ def export_stats(config):
     else:
         log("  No output from restic stats")
 
-    # Get raw repo size on disk
+
+def export_raw_stats(config):
+    """Exports raw-data repository statistics from restic."""
+    env = get_restic_env(config)
     log("Fetching repo stats (raw-data mode)...")
-    command_raw = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "raw-data"]
-    output_raw = run_restic_command(command_raw, env)
-    if output_raw:
+    command = ["restic", "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "raw-data"]
+    output = run_restic_command(command, env)
+    if output:
         try:
-            stats_raw = json.loads(output_raw)
-            raw_size = stats_raw.get("total_size", 0)
+            stats = json.loads(output)
+            raw_size = stats.get("total_size", 0)
             REPO_RAW_SIZE.set(raw_size)
             log(f"  Raw repo size: {raw_size / (1024**3):.2f} GiB")
         except json.JSONDecodeError as e:
@@ -198,9 +200,20 @@ def update_prometheus_metrics(config):
     """Fetches restic data and updates all Prometheus metrics."""
     log("--- Updating metrics ---")
 
-    # --- Snapshots ---
-    log("Fetching snapshots...")
-    snapshots = export_snapshots(config)
+    # Run all four restic commands in parallel
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        snapshots_future = executor.submit(export_snapshots, config)
+        restore_future = executor.submit(export_restore_stats, config)
+        raw_future = executor.submit(export_raw_stats, config)
+        locks_future = executor.submit(export_locks, config)
+
+        # Wait for all to complete
+        snapshots = snapshots_future.result()
+        restore_future.result()
+        raw_future.result()
+        locks_future.result()
+
+    # --- Process snapshot results ---
     SNAPSHOT_COUNT.set(len(snapshots))
     log(f"  Found {len(snapshots)} snapshots")
 
@@ -233,13 +246,6 @@ def update_prometheus_metrics(config):
         SNAPSHOT_LATEST_SIZE.labels(host=host, directory=directory).set(size)
         age_hours = (time.time() - timestamp) / 3600
         log(f"  Latest backup for {host}:{directory} — {age_hours:.1f} hours ago, {size / (1024**3):.2f} GiB")
-
-    # --- Repository stats ---
-    export_stats(config)
-
-    # --- Locks ---
-    log("Checking locks...")
-    export_locks(config)
 
     log("--- Done ---\n")
 
