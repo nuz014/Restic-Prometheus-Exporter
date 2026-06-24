@@ -128,7 +128,7 @@ def parse_restic_json(output):
 
 def export_snapshots(config):
     """Exports snapshot information from restic using JSON output."""
-    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "snapshots", "--json", "--no-lock"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "snapshots", "--json", "--no-lock", "--no-cache"]
     env = get_restic_env(config)
     output = run_restic_command(command, env)
 
@@ -180,7 +180,7 @@ def export_restore_stats(config):
     """Exports restore-size repository statistics from restic."""
     env = get_restic_env(config)
     log("Fetching repo stats (restore-size mode)...")
-    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "blobs-per-file"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--no-cache", "--mode", "blobs-per-file"]
     output = run_restic_command(command, env)
     if output:
         try:
@@ -200,7 +200,7 @@ def export_raw_stats(config):
     """Exports raw-data repository statistics from restic."""
     env = get_restic_env(config)
     log("Fetching repo stats (raw-data mode)...")
-    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--mode", "raw-data"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "stats", "--json", "--no-lock", "--no-cache", "--mode", "raw-data"]
     output = run_restic_command(command, env)
     if output:
         try:
@@ -217,7 +217,7 @@ def export_raw_stats(config):
 
 def export_locks(config):
     """Counts the number of active locks in the restic repository."""
-    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "list", "locks", "--no-lock"]
+    command = [config['RESTIC_BINARY'], "-r", config['RESTIC_REPOSITORY'], "list", "locks", "--no-lock", "--no-cache"]
     env = get_restic_env(config)
     output = run_restic_command(command, env)
 
